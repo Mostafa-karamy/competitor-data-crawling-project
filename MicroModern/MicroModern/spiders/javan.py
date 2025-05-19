@@ -45,28 +45,39 @@ class JavanSpider(scrapy.Spider):
     def parse_parts(self, response):
         part_url = response.meta['part_url']
         part_name = response.xpath("//div[@class='p-03 flex-align-start border-bottom-w']/h1/text()").get()
-        product_ID = response.xpath("//div[@id='Product_Detail']/@data-prdid").get()
-        StockInfo_link = f'https://www.javanelec.com/shoppingcarts/create?productId={product_ID}'
-        
+        part_ID = response.xpath("//div[@id='Product_Detail']/@data-prdid").get()
+        StockInfo_link = f'https://www.javanelec.com/shoppingcarts/create?productId={part_ID}'
+        part_feature = {}
+        feature_table = response.xpath('//table[@class="table m-0 table-sm ltr"]/tbody/tr')
+        for feature in feature_table:
+            feature_key = feature.xpath(".//td[position()=1]/text()").get().strip()
+            feature_value = (feature.xpath(".//td[position()=2]/span[position()=1]/text()").get().strip() + 
+                            feature.xpath(".//td[position()=2]/span[position()=2]/text()").get().strip())
+            part_feature[f'{feature_key}'] = feature_value
         yield response.follow(url=StockInfo_link,
                               callback=self.parse_stock_info,
                               meta={'part_url': part_url,
-                                    'part_name': part_name,})
-        
+                                    'part_name': part_name,
+                                    'part_ID': part_ID,
+                                    'part_feature': part_feature})
     def parse_stock_info(self, response):
         part_url = response.request.meta['part_url']
         part_name = response.request.meta['part_name']
         bulks = response.xpath('//table[@id="price_quntity"]/tbody/tr')
-        
+        part_ID = response.request.meta['part_ID']
+        part_feature = response.request.meta['part_feature']
         for bulk in bulks:
             item = {
+                'search_key' : self.user_input,
                 'seller' : 'javanelectronic',
                 'distributar': 'javanelectronic',
                 'part_url': part_url,
+                'part_ID' : part_ID,
                 'part_name': (part_name or '').strip(),
                 'stock': float(response.xpath('//input[@id="Inventory"]/@value').get() or 0) if bulk else 0,
-                'bulk_price' : ((bulk.xpath('.//td[@class="font-weight-bold"]/text()').get() or bulk.xpath(".//td/span/span/text()").get()).strip()) if bulk else 'no stock',
+                'bulk_price' : (bulk.xpath('.//td[@class="font-weight-bold"]/text()').get() or bulk.xpath(".//td/span/span/text()").get() or '0').strip(),
                 'bulk_volume' : ((bulk.xpath('.//td/span/text()').get() or '1').strip() or '1') if bulk else 'no stock',
+                'part_feature' : part_feature,
                 'historical_date' : date.today(),
                 'time' : datetime.now().strftime("%H:%M:%S")
             }
