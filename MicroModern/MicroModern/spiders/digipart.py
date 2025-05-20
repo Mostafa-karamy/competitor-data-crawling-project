@@ -35,15 +35,20 @@ class DigipartSpider(scrapy.Spider):
                                       bulk.xpath(".//td[@style='text-align:right']/text()").get())
                         bulk_volume = bulk.xpath(".//td[@class='qty-brk']/text()").get()
                         item = {
+                            'search_key' : self.search_part,
                             'seller': 'digipart',
                             'distributor': distributor_name,
                             'part_url': part_url,
+                            'part_ID' : '',
                             'part_name': part_name,
                             'stock': stock,
                             'bulk_price': bulk_price.strip() if bulk_price else 'no price',
                             'bulk_volume': (bulk_volume.strip() if bulk_volume else "1") if bulk_price else "no volume",
+                            'part_feature' : {},
                             'historical_date': date.today(),
                             'time': datetime.now().strftime("%H:%M:%S")
                         }
-
-                        yield item
+                        if bulk_price:
+                            yield item
+                        else:
+                            pass
